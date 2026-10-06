@@ -4,8 +4,9 @@
   Mantém a caixa de som Bluetooth acordada tocando um áudio silencioso
   de tempos em tempos.
 
-  Toda a configuração e o liga/desliga são feitos na JANELA do programa.
-  O ícone da bandeja (perto do relógio) serve só para reabrir a janela ou sair.
+  O liga/desliga e as configurações ficam na JANELA do programa.
+  O ícone da bandeja (perto do relógio) fica sempre lá: botão direito =
+  Ligar/Desligar, Abrir ou Sair; duplo clique abre a janela.
 
   NÃO inicia com o Windows. Você abre quando quiser.
   Não precisa de permissão de administrador.
@@ -40,7 +41,7 @@ if (-not $script:Mutex.WaitOne(0, $false)) {
 }
 
 # ------------------------------------------------------------ configuração
-$script:Config = @{ IntervalSeconds = 30; LengthSeconds = 2; Mode = 'silent'; AutoEnable = $false }
+$script:Config = @{ IntervalSeconds = 30; LengthSeconds = 2; Mode = 'silent'; AutoEnable = $false; Continuous = $false }
 $script:Enabled = $false
 $script:Quitting = $false
 $script:HintShown = $false
@@ -106,7 +107,8 @@ $timer  = New-Object System.Windows.Forms.Timer
 
 function Apply-Audio {
     try { $player.Stop() } catch {}
-    New-KeepAliveWav -Path $WavPath -Seconds ([int]$script:Config.LengthSeconds) -Mode ([string]$script:Config.Mode)
+    if ([bool]$script:Config.Continuous) { $secs = 10 } else { $secs = [int]$script:Config.LengthSeconds }
+    New-KeepAliveWav -Path $WavPath -Seconds $secs -Mode ([string]$script:Config.Mode)
     $player.SoundLocation = $WavPath
     $player.Load()
     $timer.Interval = [int]$script:Config.IntervalSeconds * 1000
@@ -120,6 +122,24 @@ function Invoke-Ping {
     } catch { Log "erro no ping: $_" }
 }
 $timer.Add_Tick({ Invoke-Ping })
+
+function Start-KeepAlive {
+    $timer.Stop()
+    if ([bool]$script:Config.Continuous) {
+        # Modo contínuo: silêncio em loop, o stream de áudio nunca fecha
+        try { $player.PlayLooping() } catch { Log "erro no loop: $_" }
+        $script:LastPing = $null
+    } else {
+        Invoke-Ping
+        $timer.Start()
+    }
+}
+
+function Stop-KeepAlive {
+    $timer.Stop()
+    try { $player.Stop() } catch {}
+    $script:LastPing = $null
+}
 
 # ------------------------------------------------------------------ ícones
 function New-StateIcon([bool]$On) {
@@ -154,13 +174,13 @@ function New-Ctl($type, [int]$x, [int]$y, [int]$w, [int]$h, $text) {
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = 'Bluetooth KeepAlive'
-$form.ClientSize = New-Object System.Drawing.Size(400, 430)
+$form.ClientSize = New-Object System.Drawing.Size(400, 452)
 $form.StartPosition = 'CenterScreen'
 $form.FormBorderStyle = 'FixedDialog'
 $form.MaximizeBox = $false
 $form.Font = New-Object System.Drawing.Font('Segoe UI', 9)
 
-$lblStatus = New-Ctl 'System.Windows.Forms.Label' 20 14 360 38 ''
+$lblStatus = New-Ctl 'System.Windows.Forms.Label' 20 14 230 38 ''
 $lblStatus.Font = New-Object System.Drawing.Font('Segoe UI', 20, [System.Drawing.FontStyle]::Bold)
 $lblLast = New-Ctl 'System.Windows.Forms.Label' 22 54 360 20 ''
 $lblLast.ForeColor = [System.Drawing.Color]::Gray
@@ -168,7 +188,7 @@ $lblLast.ForeColor = [System.Drawing.Color]::Gray
 $btnToggle = New-Ctl 'System.Windows.Forms.Button' 20 84 360 52 ''
 $btnToggle.Font = New-Object System.Drawing.Font('Segoe UI', 12, [System.Drawing.FontStyle]::Bold)
 
-$grp = New-Ctl 'System.Windows.Forms.GroupBox' 20 152 360 192 'Configurações'
+$grp = New-Ctl 'System.Windows.Forms.GroupBox' 20 152 360 234 'Configurações'
 $l1 = New-Ctl 'System.Windows.Forms.Label' 12 33 230 20 'Intervalo entre pings (segundos):'
 $numInterval = New-Ctl 'System.Windows.Forms.NumericUpDown' 255 30 90 24 ''
 $numInterval.Minimum = 5; $numInterval.Maximum = 600
@@ -180,24 +200,24 @@ $cmbMode = New-Ctl 'System.Windows.Forms.ComboBox' 125 98 220 24 ''
 $cmbMode.DropDownStyle = 'DropDownList'
 [void]$cmbMode.Items.Add('Silêncio total (recomendado)')
 [void]$cmbMode.Items.Add('Quase silencioso')
-$chkAuto = New-Ctl 'System.Windows.Forms.CheckBox' 12 134 340 22 'Ligar automaticamente ao abrir o programa'
-$lblTip = New-Ctl 'System.Windows.Forms.Label' 12 162 340 20 'Recomendado: intervalo 30 s e duração 2 s. Clique em Salvar para aplicar.'
+$chkCont = New-Ctl 'System.Windows.Forms.CheckBox' 12 132 340 22 'Modo contínuo (stream sempre aberto, sem pausas)'
+$chkAuto = New-Ctl 'System.Windows.Forms.CheckBox' 12 160 340 22 'Ligar automaticamente ao abrir o programa'
+$lblTip = New-Ctl 'System.Windows.Forms.Label' 12 190 340 40 'Modo contínuo: evita o atraso no início do som, mas gasta mais bateria.'
 $lblTip.ForeColor = [System.Drawing.Color]::Gray
 $lblTip.Font = New-Object System.Drawing.Font('Segoe UI', 8)
-$grp.Controls.AddRange(@($l1, $numInterval, $l2, $numLength, $l3, $cmbMode, $chkAuto, $lblTip))
+$grp.Controls.AddRange(@($l1, $numInterval, $l2, $numLength, $l3, $cmbMode, $chkCont, $chkAuto, $lblTip))
 
-$btnSave = New-Ctl 'System.Windows.Forms.Button' 20 358 175 36 'Salvar configurações'
-$btnQuit = New-Ctl 'System.Windows.Forms.Button' 205 358 175 36 'Encerrar programa'
-$lblHint = New-Ctl 'System.Windows.Forms.Label' 20 402 360 18 'Fechar no X mantém o programa na bandeja (perto do relógio).'
-$lblHint.ForeColor = [System.Drawing.Color]::Gray
-$lblHint.Font = New-Object System.Drawing.Font('Segoe UI', 8)
+$btnSave = New-Ctl 'System.Windows.Forms.Button' 20 398 175 36 'Salvar configurações'
+$btnQuit = New-Ctl 'System.Windows.Forms.Button' 250 18 130 32 'Encerrar programa'
+$btnTray = New-Ctl 'System.Windows.Forms.Button' 205 398 175 36 'Fechar para a bandeja'
 
-$form.Controls.AddRange(@($lblStatus, $lblLast, $btnToggle, $grp, $btnSave, $btnQuit, $lblHint))
+$form.Controls.AddRange(@($lblStatus, $lblLast, $btnQuit, $btnToggle, $grp, $btnSave, $btnTray))
 
 # ------------------------------------------------------------------ bandeja
-# O ícone é só um atalho: abrir a janela ou sair. Nada de configuração aqui.
+# Ícone sempre presente: botão direito liga/desliga, abre a janela ou sai.
 $notify = New-Object System.Windows.Forms.NotifyIcon
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
+$miToggle = $menu.Items.Add('Ligar')
 $miOpen = $menu.Items.Add('Abrir Bluetooth KeepAlive')
 [void]$menu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
 $miExit = $menu.Items.Add('Sair')
@@ -209,6 +229,7 @@ function Update-Ui {
         $lblStatus.Text = '● Ligado'
         $lblStatus.ForeColor = [System.Drawing.Color]::FromArgb(46, 160, 67)
         $btnToggle.Text = 'Desligar'
+        $miToggle.Text = 'Desligar'
         $notify.Icon = $iconOn
         $form.Icon = $iconOn
         $notify.Text = 'Bluetooth KeepAlive: LIGADO'
@@ -216,11 +237,14 @@ function Update-Ui {
         $lblStatus.Text = '○ Desligado'
         $lblStatus.ForeColor = [System.Drawing.Color]::Gray
         $btnToggle.Text = 'Ligar'
+        $miToggle.Text = 'Ligar'
         $notify.Icon = $iconOff
         $form.Icon = $iconOff
         $notify.Text = 'Bluetooth KeepAlive: DESLIGADO'
     }
-    if ($script:LastPing -and $script:Enabled) {
+    if ($script:Enabled -and [bool]$script:Config.Continuous) {
+        $lblLast.Text = 'Reprodução contínua ativa'
+    } elseif ($script:LastPing -and $script:Enabled) {
         $lblLast.Text = 'Último ping: ' + $script:LastPing.ToString('HH:mm:ss')
     } else {
         $lblLast.Text = ''
@@ -229,14 +253,7 @@ function Update-Ui {
 
 function Set-Enabled([bool]$on) {
     $script:Enabled = $on
-    if ($on) {
-        Invoke-Ping
-        $timer.Start()
-    } else {
-        $timer.Stop()
-        try { $player.Stop() } catch {}
-        $script:LastPing = $null
-    }
+    if ($on) { Start-KeepAlive } else { Stop-KeepAlive }
     Update-Ui
     Log ('estado: ' + $(if ($on) { 'ligado' } else { 'desligado' }))
 }
@@ -261,6 +278,12 @@ function Exit-App {
 # ----------------------------------------------------------------- eventos
 $btnToggle.Add_Click({ Set-Enabled (-not $script:Enabled) })
 $btnQuit.Add_Click({ Exit-App })
+$btnTray.Add_Click({ $form.Close() })
+$chkCont.Add_CheckedChanged({
+    $numInterval.Enabled = -not $chkCont.Checked
+    $numLength.Enabled = -not $chkCont.Checked
+})
+$miToggle.Add_Click({ Set-Enabled (-not $script:Enabled) })
 $miOpen.Add_Click({ Show-Window })
 $miExit.Add_Click({ Exit-App })
 $notify.Add_DoubleClick({ Show-Window })
@@ -268,7 +291,7 @@ $notify.Add_DoubleClick({ Show-Window })
 $btnSave.Add_Click({
     $i = [int]$numInterval.Value
     $l = [int]$numLength.Value
-    if ($l -ge $i) {
+    if ((-not [bool]$chkCont.Checked) -and ($l -ge $i)) {
         [System.Windows.Forms.MessageBox]::Show('A duração do ping precisa ser menor que o intervalo.', 'Bluetooth KeepAlive', 'OK', 'Warning') | Out-Null
         return
     }
@@ -276,9 +299,10 @@ $btnSave.Add_Click({
     $script:Config.LengthSeconds = $l
     if ($cmbMode.SelectedIndex -eq 1) { $script:Config.Mode = 'near' } else { $script:Config.Mode = 'silent' }
     $script:Config.AutoEnable = [bool]$chkAuto.Checked
+    $script:Config.Continuous = [bool]$chkCont.Checked
     Save-Config
     Apply-Audio
-    if ($script:Enabled) { $timer.Stop(); $timer.Start(); Invoke-Ping }
+    if ($script:Enabled) { Start-KeepAlive; Update-Ui }
     [System.Windows.Forms.MessageBox]::Show('Configurações salvas.', 'Bluetooth KeepAlive', 'OK', 'Information') | Out-Null
 })
 
@@ -289,7 +313,7 @@ $form.Add_FormClosing({
         $e.Cancel = $true
         $form.Hide()
         if (-not $script:HintShown) {
-            $notify.ShowBalloonTip(3000, 'Bluetooth KeepAlive', 'A janela foi para a bandeja. Duplo clique no ícone para abrir de novo; para encerrar, use o botão Encerrar programa.', [System.Windows.Forms.ToolTipIcon]::Info)
+            $notify.ShowBalloonTip(3000, 'Bluetooth KeepAlive', 'A janela foi para a bandeja e o programa continua rodando. Duplo clique no ícone abre de novo; botão direito liga, desliga ou sai.', [System.Windows.Forms.ToolTipIcon]::Info)
             $script:HintShown = $true
         }
     }
@@ -301,6 +325,9 @@ $numInterval.Value = [int]$script:Config.IntervalSeconds
 $numLength.Value = [int]$script:Config.LengthSeconds
 if ($script:Config.Mode -eq 'near') { $cmbMode.SelectedIndex = 1 } else { $cmbMode.SelectedIndex = 0 }
 $chkAuto.Checked = [bool]$script:Config.AutoEnable
+$chkCont.Checked = [bool]$script:Config.Continuous
+$numInterval.Enabled = -not $chkCont.Checked
+$numLength.Enabled = -not $chkCont.Checked
 
 try { Apply-Audio } catch { Log "erro ao preparar áudio: $_" }
 

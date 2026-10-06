@@ -18,17 +18,21 @@ você liga/desliga e ajusta tudo.
 3. Abre a janela do programa. Nela você:
    - **Liga / Desliga** com o botão grande;
    - ajusta o **intervalo** entre pings (padrão 30 s), a **duração** de cada ping (padrão 2 s) e o **modo de áudio** (silêncio total ou quase silencioso);
+   - ativa o **modo contínuo** (silêncio em loop, o áudio nunca fecha: sem atraso nem corte no começo do próximo som, mas gasta mais bateria na caixa e no PC);
    - escolhe se quer **ligar automaticamente ao abrir o programa** (padrão: desmarcado, ou seja, abre desligado);
    - clica em **Salvar configurações** para aplicar.
-4. Fechar a janela no **X** não encerra o programa: ele fica na bandeja (perto do relógio, talvez dentro da setinha `^`).
-   O ícone serve só para reabrir a janela (duplo clique) ou sair (botão direito → Sair).
-   Para encerrar de vez, use o botão **Encerrar programa** na janela.
+4. Fechar a janela no **X** ou no botão **Fechar para a bandeja** não encerra o programa: ele fica na bandeja (perto do relógio, talvez dentro da setinha `^`).
+   O ícone fica lá enquanto o programa estiver rodando: **botão direito** para ligar/desligar (Ligar/Desligar), abrir a janela (Abrir) ou sair (Sair); **duplo clique** abre a janela.
+   Para encerrar de vez, use o botão **Encerrar programa**, no canto superior direito da janela.
+
+> Para o ícone ficar sempre visível, arraste-o da setinha `^` para a barra de tarefas (ou Configurações → Personalização → Barra de tarefas → Outros ícones da bandeja do sistema). Isso é controlado pelo Windows, o programa não consegue forçar.
 
 > A caixa Bluetooth precisa estar selecionada como saída de áudio do Windows
 > (Configurações → Sistema → Som → Saída).
 
 ## Se a caixa ainda desliga
 
+- Se o começo dos sons é cortado depois de um tempo parado, ative o **modo contínuo**.
 - Reduza o intervalo para 15 s.
 - Teste o modo "Quase silencioso".
 
