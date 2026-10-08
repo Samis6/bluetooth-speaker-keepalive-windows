@@ -13,7 +13,7 @@ você liga/desliga e ajusta tudo.
 ## Como usar
 
 1. Baixe/clone o repositório.
-2. Dê dois cliques em `Instalar.cmd` (copia para `%LOCALAPPDATA%` e cria um atalho na Área de Trabalho).
+2. Dê dois cliques em `Instalar.cmd` (copia para `%LOCALAPPDATA%` e cria atalhos na Área de Trabalho e no Menu Iniciar; para abrir depois, aperte a tecla Windows e digite "Bluetooth KeepAlive").
    - Ou, sem instalar: dois cliques em `KeepAlive.vbs`.
 3. Abre a janela do programa. Nela você:
    - **Liga / Desliga** com o botão grande;

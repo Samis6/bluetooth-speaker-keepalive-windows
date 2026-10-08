@@ -13,7 +13,7 @@ turn it on/off and adjust everything.
 ## How to use
 
 1. Download or clone this repository.
-2. Double-click `Instalar.cmd` (copies the app to `%LOCALAPPDATA%` and creates a Desktop shortcut).
+2. Double-click `Instalar.cmd` (copies the app to `%LOCALAPPDATA%` and creates Desktop and Start Menu shortcuts; to open it later, press the Windows key and type "Bluetooth KeepAlive").
    - Or, without installing: double-click `KeepAlive.vbs`.
 3. The program window opens. In it you can:
    - **Turn it On / Off** with the big button;
